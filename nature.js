@@ -4,7 +4,9 @@ var mouseX, mouseY;
 var walkerCanvas, walkerCtx
 var walker;
 
-var fps = 0.5;
+var fps = 2;
+
+var t = 0;
 
 var TOTAL_RANDOM = 0;
 var TEND_RIGHT = 1;
@@ -53,28 +55,37 @@ function drawGaussian() {
 
 // visualize 2-d perlin noise
 function draw2DPerlin() {
+	walkerCtx.clearRect(0, 0, width, height);
 	noise.seed(Math.random());
 
 	var red, green, blue;
-	var id = walkerCtx.createImageData(1,1);
-	var d = id.data;
+	var xoff, yoff;
+	//var id = walkerCtx.createImageData(1,1);
+	//var d = id.data;
 
+	xoff = 0.0;
 	for (var x = 0; x < width; x++) {
+		yoff = 0.0;
 		for(var y = 0; y < height; y++) {
-			red = map(noise.simplex2(x, y), 0, 1, 0, 255);
-			green = 0;//map(noise.simplex2(x, y), 0, 1, 0, 255);
-			blue = 200;//map(noise.simplex2(x, y), 0, 1, 0, 255);
+			red = Math.floor(map(noise.simplex2(xoff, yoff, t), 0, 1, 150, 255));
+			green = Math.floor(map(noise.simplex2(xoff, yoff, t), 0, 1, 150, 255));
+			blue = Math.floor(map(noise.simplex2(xoff, yoff, t), 0, 1, 150, 255));
 
-			//walkerCtx.fillStyle = 'rgb(' + red + ',' + green + ',' + blue + ')';
-			//walkerCtx.fillRect(x, y, 1, 1);
+			walkerCtx.fillStyle = 'rgba(' + red + ',' + green + ',' + blue + ',0.65)';
+			walkerCtx.fillRect(x, y, 1, 1);
 
-			d[0] = red;
-			d[1] = green;
-			d[2] = blue;
-			d[3] = 1;
-			walkerCtx.putImageData(id, x, y);
+			//d[0] = red;
+			//d[1] = green;
+			//d[2] = blue;
+			//d[3] = 1;
+			//walkerCtx.putImageData(id, x, y);
+
+			yoff += 0.005;
 		}
+		xoff += 0.005;
 	}
+
+	t += .006;
 
 }
 
