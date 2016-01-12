@@ -4,9 +4,15 @@ var mouseX, mouseY;
 var walkerCanvas, walkerCtx
 var walker;
 
+var fps = 0.5;
+
 var TOTAL_RANDOM = 0;
 var TEND_RIGHT = 1;
 var TEND_MOUSE = 2;
+var GAUSSIAN_WALK = 3;
+var MONTE_CARLO = 4;
+var PERLIN = 5;
+var _2DPERLIN = 6;
 
 /* Initialization and Update functions */
 function init() {
@@ -21,10 +27,10 @@ function init() {
 	document.addEventListener("mousemove", onMouseMove, false);
 
 	// instantiate the walker
-	walker = new Walker(TOTAL_RANDOM);
+	walker = new Walker(PERLIN);
 
 	// redraw at 1000 fps
-	setInterval(drawGaussian, 1000/5);
+	setInterval(draw2DPerlin, 1000/fps);
 }
 
 // take a step and then display it
@@ -45,6 +51,33 @@ function drawGaussian() {
 	walkerCtx.fillRect(x, 90, 16, 16);
 }
 
+// visualize 2-d perlin noise
+function draw2DPerlin() {
+	noise.seed(Math.random());
+
+	var red, green, blue;
+	var id = walkerCtx.createImageData(1,1);
+	var d = id.data;
+
+	for (var x = 0; x < width; x++) {
+		for(var y = 0; y < height; y++) {
+			red = map(noise.simplex2(x, y), 0, 1, 0, 255);
+			green = 0;//map(noise.simplex2(x, y), 0, 1, 0, 255);
+			blue = 200;//map(noise.simplex2(x, y), 0, 1, 0, 255);
+
+			//walkerCtx.fillStyle = 'rgb(' + red + ',' + green + ',' + blue + ')';
+			//walkerCtx.fillRect(x, y, 1, 1);
+
+			d[0] = red;
+			d[1] = green;
+			d[2] = blue;
+			d[3] = 1;
+			walkerCtx.putImageData(id, x, y);
+		}
+	}
+
+}
+
 /* Walker class declaration and definition */
 function Walker(tendency) {
 	// walker class will take a step in some direction
@@ -52,17 +85,32 @@ function Walker(tendency) {
 
 	this.x = width / 2;
 	this.y = height / 2;
+	this.tx = 0;
+	this.ty = 10000;
 	this.tendency = tendency || TOTAL_RANDOM;
 
+	noise.seed(Math.random());
+
 	this.display = function() {
+		var radius;
 		walkerCtx.fillStyle = "rgb(200, 0, 0)";
-		walkerCtx.fillRect(this.x,this.y,1,1);
+		if(this.tendency != PERLIN) {
+			radius = 2;
+		} else {
+			radius = 8;
+		}
+
+		walkerCtx.fillStyle = "rgba(200, 0, 0, 0.2)";
+		walkerCtx.beginPath();
+		walkerCtx.arc(this.x, this.y, radius, 0, 2 * Math.PI, false);
+		walkerCtx.fill();
+
 	}
 
 	this.step = function() {
 		switch(this.tendency) {
 			case TOTAL_RANDOM:
-				totalRandom(this);
+				totalRandom(this, false);
 				break;
 			case TEND_RIGHT:
 				tendRight(this);
@@ -70,21 +118,58 @@ function Walker(tendency) {
 			case TEND_MOUSE:
 				tendMouse(this);
 				break;
+			case GAUSSIAN_WALK:
+				totalRandom(this, true);
+				break;
+			case MONTE_CARLO:
+				monteCarloWalk(this);
+				break;
+			case PERLIN:
+				perlinWalk(this);
+				break;
 			default:
 				totalRandom(this);
 		}
-		this.x %= width;
-		this.y %= height;
+		this.x = ((this.x % width) + width) % width;
+		this.y = ((this.y % height) + height) % height;
 	}
 }
 
 /* Step generators */
-function totalRandom(w) {
+function totalRandom(w, useGaussian) {
 	var stepx = Math.floor((Math.random() * 3) - 1);
 	var stepy = Math.floor((Math.random() * 3) - 1);
+	var gauss = gaussian();
 
 	w.x += stepx;
 	w.y += stepy;
+
+	if(useGaussian) {
+		w.x += gauss;
+		w.y += gauss;
+	}
+}
+
+// TODO: change function name to variableStepSize
+//		and determine stepsize by montecarlo or perlin noise
+function monteCarloWalk(w) {
+	//var stepsize = montecarlo("linear");
+	var stepsize = map(noise.simplex2(w.tx, 1), 0, 1, 0, 6);
+	w.tx += .008;
+
+	var stepx = Math.random() * (2 * stepsize) - stepsize;
+	var stepy = Math.random() * (2 * stepsize) - stepsize;
+
+	w.x += stepx;
+	w.y += stepy;
+}
+
+function perlinWalk(w) {
+	w.x = map(noise.simplex2(w.tx, 1), 0, 1, 0, width);
+	w.y = map(noise.simplex2(w.ty, 1), 0, 1, 0, height);
+
+	w.tx += .008;
+	w.ty += .008;
 }
 
 function tendRight(w) {
