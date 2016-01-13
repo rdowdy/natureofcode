@@ -61,6 +61,14 @@ function map(x, in_min, in_max, out_min, out_max) {
 
 // returns a random number between 0 and 1
 // TODO_LONGTERM: implement different random number generators
-function random() {
+function random0to1() {
 	return Math.random();
+};
+
+function random0toMax(max) {
+	return Math.random() * max;
+};
+
+function randomMintoMax(min, max) {
+	return Math.random() * (max - min) + min;
 };

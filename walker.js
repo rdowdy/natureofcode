@@ -4,7 +4,7 @@ var mouseX, mouseY;
 var walkerCanvas, walkerCtx
 var walker;
 
-var fps = 2;
+var fps = 30;
 
 var t = 0;
 
@@ -17,9 +17,10 @@ var PERLIN = 5;
 var _2DPERLIN = 6;
 
 /* Initialization and Update functions */
-function init() {
+function initWalker() {
+	walkerCtx.clearRect(0, 0, width, height);
 	// get walkerCanvas context
-	walkerCanvas = document.getElementById("walkerCanvas");
+	walkerCanvas = document.getElementById("canvas");
 	walkerCtx = walkerCanvas.getContext("2d");
 
 	// store height and width of canvas
@@ -32,7 +33,7 @@ function init() {
 	walker = new Walker(PERLIN);
 
 	// redraw at 1000 fps
-	setInterval(draw2DPerlin, 1000/fps);
+	setInterval(update, 1000/fps);
 }
 
 // take a step and then display it
@@ -96,6 +97,7 @@ function Walker(tendency) {
 
 	this.x = width / 2;
 	this.y = height / 2;
+	this.location = new Vector(width / 2, height / 2);
 	this.tx = 0;
 	this.ty = 10000;
 	this.tendency = tendency || TOTAL_RANDOM;
@@ -113,7 +115,7 @@ function Walker(tendency) {
 
 		walkerCtx.fillStyle = "rgba(200, 0, 0, 0.2)";
 		walkerCtx.beginPath();
-		walkerCtx.arc(this.x, this.y, radius, 0, 2 * Math.PI, false);
+		walkerCtx.arc(this.location.x, this.location.y, radius, 0, 2 * Math.PI, false);
 		walkerCtx.fill();
 
 	}
@@ -141,8 +143,8 @@ function Walker(tendency) {
 			default:
 				totalRandom(this);
 		}
-		this.x = ((this.x % width) + width) % width;
-		this.y = ((this.y % height) + height) % height;
+		this.location.x = ((this.location.x % width) + width) % width;
+		this.location.y = ((this.location.y % height) + height) % height;
 	}
 }
 
@@ -152,12 +154,13 @@ function totalRandom(w, useGaussian) {
 	var stepy = Math.floor((Math.random() * 3) - 1);
 	var gauss = gaussian();
 
-	w.x += stepx;
-	w.y += stepy;
+	var stepVector = new Vector(stepx, stepy);
+	var gaussVector = new Vector(gauss, gauss);
+
+	w.location.add(stepVector);
 
 	if(useGaussian) {
-		w.x += gauss;
-		w.y += gauss;
+		w.location.add(gaussVector);
 	}
 }
 
@@ -170,14 +173,17 @@ function monteCarloWalk(w) {
 
 	var stepx = Math.random() * (2 * stepsize) - stepsize;
 	var stepy = Math.random() * (2 * stepsize) - stepsize;
+	var stepVector = new Vector(stepx, stepy);
 
-	w.x += stepx;
-	w.y += stepy;
+	w.location.add(stepVector);
 }
 
 function perlinWalk(w) {
-	w.x = map(noise.simplex2(w.tx, 1), 0, 1, 0, width);
-	w.y = map(noise.simplex2(w.ty, 1), 0, 1, 0, height);
+	var x = map(noise.simplex2(w.tx, 1), 0, 1, 0, width);
+	var y = map(noise.simplex2(w.ty, 1), 0, 1, 0, height);
+	var locationVector = new Vector(x, y);
+
+	w.location = locationVector;
 
 	w.tx += .008;
 	w.ty += .008;
@@ -187,13 +193,13 @@ function tendRight(w) {
 	var r = Math.random();
 
 	if(r < 0.2) {
-		w.x -= 1;
+		w.location.x -= 1;
 	} else if(r < 0.4) {
-		w.y += 1;
+		w.location.y += 1;
 	} else if(r < 0.6) {
-		w.y -= 1;
+		w.location.y -= 1;
 	} else {
-		w.x += 1;
+		w.location.x += 1;
 	}
 }
 
@@ -203,16 +209,16 @@ function tendMouse(w) {
 	if(r < 0.5) {
 		totalRandom(w);
 	} else {
-		if(mouseX > w.x) {
-			w.x += 1;
-		} else if(mouseX < w.x) {
-			w.x -= 1;
+		if(mouseX > w.location.x) {
+			w.location.x += 1;
+		} else if(mouseX < w.location.x) {
+			w.location.x -= 1;
 		}
 
-		if(mouseY > w.y) {
-			w.y += 1;
-		} else if(mouseY < w.y) {
-			w.y -= 1;
+		if(mouseY > w.location.y) {
+			w.location.y += 1;
+		} else if(mouseY < w.location.y) {
+			w.location.y -= 1;
 		}
 	}
 }
