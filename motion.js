@@ -1,9 +1,18 @@
+// information about window and cursor
 var width, height, center;
 var mouseX, mouseY;
 
+// canvas and context
 var canvas, ctx;
-var movers;
 
+// environment
+var movers;
+var air;
+var liquid;
+var wind;
+var gravity;
+
+// framerate
 var fps = 60;
 
 /* Initialization and Update functions */
@@ -16,18 +25,27 @@ function initVector() {
 	width = canvas.width;
 	height = canvas.height;
 	center = new Vector(width/2, height/2);
+
+	// initialize mouse position 
+	// in case its used immediately
 	mouseX = center.x;
 	mouseY = center.y;
+
 	// keep track of mouse position
 	document.addEventListener("mousemove", onMouseMove, false);
 
 	// create movers
 	movers = [];
 
-	// initialize
-	for(var i = 0; i < 20; i++) {
-		movers[i] = new Mover();
+	// initialize movers
+	for(var i = 1; i <= 5; i++) {
+		movers[i - 1] = new Mover(randomMintoMax(20, 45), i * 120, 50);
 	}
+
+	// wind, gravity, liquid
+	liquid = new Fluid(0, height/2, width, height/2, 2.35);
+	air = new Fluid(0, 0, width, height/2, .06);
+	air.fillStyle = "rgba(255, 255, 255, 0)";
 
 	// redraw at 1000 fps
 	setInterval(update, 1000/fps);
@@ -36,39 +54,44 @@ function initVector() {
 function update() {
 	ctx.clearRect(0, 0, width, height);
 	for(var i = 0; i < movers.length; i++) {
+
+		wind = new Vector(0.0, 0);
+		gravity = new Vector(0, .24 * movers[i].mass);
+
+		if(movers[i].isInside(liquid)) {
+			movers[i].drag(liquid);
+		} else {
+			movers[i].drag(air);
+		}
+
+		movers[i].applyForce(wind);
+		movers[i].applyForce(gravity);
+
 		movers[i].update();
 		movers[i].checkEdges();
 		movers[i].display();
 	}
+	
+	air.display();
+	liquid.display();
 };
 
-function Mover() {
-	this.location = new Vector(random0toMax(width), random0toMax(height));
+function Mover(m, x, y) {
+	this.location = new Vector(x, y);
 	this.velocity = new Vector(0, 0);
-	this.acceleration = new Vector(-.001, 0.01);
-	this.topspeed = 10;
+	this.acceleration = new Vector(0, 0);
+	this.mass = m;
 
 	this.update = function() {
-		
-		/*// using random acceleration 
-		this.acceleration = Vector.random2D();
-		// scale accel to range of [-2, 2]
-		this.acceleration.mult(randomMintoMax(-2, 2));*/
-		var mouse = new Vector(mouseX, mouseY);
-		var x = Vector.sub(mouse, this.location);
-		x.normalize();
-		x.mult(0.8);
-		this.acceleration = x;
-
 		this.velocity.add(this.acceleration);
-		this.limit(this.topspeed);
 		this.location.add(this.velocity);
+		this.acceleration.mult(0);
 	};
 
 	this.display = function() {
 		ctx.fillStyle = "rgb(200, 0, 0)";
 		ctx.beginPath();
-		ctx.arc(this.location.x, this.location.y, 20, 0, 2 * Math.PI, false);
+		ctx.arc(this.location.x, this.location.y, this.mass, 0, 2 * Math.PI, false);
 		ctx.fill();
 		ctx.lineWidth = 3;
 		ctx.strokeStyle = "rgb(100, 100, 100)";
@@ -77,24 +100,51 @@ function Mover() {
 
 	this.checkEdges = function() {
 		if(this.location.x > width) {
-			this.location.x = 0;
-		} else if(this.location.x < 0) {
 			this.location.x = width;
+			this.velocity.x *= -1;
+		} else if(this.location.x < 0) {
+			this.location.x = 0;
+			this.velocity.x *= -1;
 		}
 
-		if(this.location.y > height) {
-			this.location.y = 0;
-		} else if (this.location.y < 0) {
+		if (this.location.y > height) {
 			this.location.y = height;
+			this.velocity.y *= -1;
 		}
 	};
 
-	this.limit = function(limit) {
-		if(this.velocity.mag() > limit) {
-			this.velocity.normalize();
-			this.velocity.mult(limit);
+	// net force = mass * accceleration
+	// or 
+	// acceleration = net force / mass
+	// for now, mass = 1
+	this.applyForce = function(force) {
+		var f = Vector.div(force, this.mass);
+		this.acceleration.add(f);
+	};
+
+	// check if inside a certain fluid
+	this.isInside = function(fluid) {
+		if(	this.location.x > fluid.x &&
+			this.location.x < fluid.x + fluid.w &&
+			this.location.y > fluid.y &&
+			this.location.y < fluid.y + fluid.h) {
+			return true;
+		} else {
+			return false;
 		}
-	}
+	};
+
+	this.drag = function(fluid) {
+		var speed = this.velocity.mag();
+		var dragMag = fluid.c * speed * speed;
+
+		var drag = this.velocity.deepCopy();
+		drag.mult(-1);
+		drag.normalize();
+		drag.mult(dragMag);
+
+		this.applyForce(drag);
+	};
 };
 
 function drawVector() {

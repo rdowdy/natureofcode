@@ -33,6 +33,10 @@ function Vector(x, y) {
 		}
 	};
 
+	this.deepCopy = function() {
+		return new Vector(this.x, this.y);
+	}
+
 	Vector.random2D = function() {
 		var out = new Vector(random0to1(), random0to1());
 		out.normalize();
